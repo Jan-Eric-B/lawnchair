@@ -793,6 +793,9 @@
 
     <string name="force_rounded_widgets">Rounded corners</string>
     <string name="widget_background_opacity_label">Background opacity</string>
+    <string name="widget_background_blur_label">Background blur</string>
+    <string name="widget_glass_edge_label">Glass edge</string>
+    <string name="widget_glass_edge_description">Adds a light rim and sheen to widget backgrounds</string>
     <string name="allow_widget_overlap">Allow overlap</string>
 
     <string name="force_widget_resize_label">Enforce widget resizing</string>

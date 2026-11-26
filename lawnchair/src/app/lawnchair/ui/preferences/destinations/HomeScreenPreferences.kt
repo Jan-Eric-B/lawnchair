@@ -278,6 +278,18 @@ fun HomeScreenPreferences(
                 valueRange = 0F..1F,
                 showAsPercentage = true,
             )
+            SliderPreference(
+                label = stringResource(id = R.string.widget_background_blur_label),
+                adapter = prefs2.widgetBackgroundBlur.getAdapter(),
+                step = 0.05f,
+                valueRange = 0F..1F,
+                showAsPercentage = true,
+            )
+            SwitchPreference(
+                adapter = prefs2.widgetGlassEdge.getAdapter(),
+                label = stringResource(id = R.string.widget_glass_edge_label),
+                description = stringResource(id = R.string.widget_glass_edge_description),
+            )
             SwitchPreference(
                 adapter = prefs2.allowWidgetOverlap.getAdapter(),
                 label = stringResource(id = R.string.allow_widget_overlap),
