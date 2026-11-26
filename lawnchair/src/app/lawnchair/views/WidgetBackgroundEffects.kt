@@ -1,8 +1,13 @@
 package app.lawnchair.views
 
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Outline
+import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.Shader
 import android.os.Build
 import android.util.Log
 import android.view.View
@@ -32,6 +37,7 @@ class WidgetBackgroundEffects private constructor(
     private val host: BaseLauncherAppWidgetHostView,
     private val backgroundAlpha: Int,
     private var blurRadius: Int,
+    private val glassEdge: Boolean,
 ) : View.OnAttachStateChangeListener,
     ViewTreeObserver.OnGlobalLayoutListener,
     ViewTreeObserver.OnPreDrawListener {
@@ -41,6 +47,12 @@ class WidgetBackgroundEffects private constructor(
     private val bounds = Rect()
     private var cornerRadius = 0f
     private var blur: BackgroundBlurDrawable? = null
+
+    // Glass edge (personal build): rim over the content, sheen behind it
+    private val boundsF = RectF()
+    private val edgeBounds = RectF()
+    private val edgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val sheenPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     override fun onViewAttachedToWindow(v: View) {
         observer = v.viewTreeObserver.also {
@@ -73,6 +85,7 @@ class WidgetBackgroundEffects private constructor(
         }
         if (bounds != oldBounds || cornerRadius != oldRadius) {
             blur?.setCornerRadius(cornerRadius)
+            updateGlassShaders()
             host.invalidate()
         }
     }
@@ -93,7 +106,41 @@ class WidgetBackgroundEffects private constructor(
                 it.draw(canvas)
             }
         }
+        if (glassEdge && !bounds.isEmpty) {
+            canvas.drawRoundRect(boundsF, cornerRadius, cornerRadius, sheenPaint)
+        }
         drawContent.accept(canvas)
+        if (glassEdge && !bounds.isEmpty) {
+            val inset = edgePaint.strokeWidth / 2
+            val radius = (cornerRadius - inset).coerceAtLeast(0f)
+            edgeBounds.set(boundsF)
+            edgeBounds.inset(inset, inset)
+            canvas.drawRoundRect(edgeBounds, radius, radius, edgePaint)
+        }
+    }
+
+    private fun updateGlassShaders() {
+        if (!glassEdge) return
+        boundsF.set(bounds)
+        edgePaint.strokeWidth = EDGE_WIDTH_DP * host.resources.displayMetrics.density
+        edgePaint.shader = LinearGradient(
+            boundsF.left,
+            boundsF.top,
+            boundsF.right,
+            boundsF.bottom,
+            EDGE_COLORS,
+            EDGE_STOPS,
+            Shader.TileMode.CLAMP,
+        )
+        sheenPaint.shader = LinearGradient(
+            0f,
+            boundsF.top,
+            0f,
+            boundsF.top + boundsF.height() * SHEEN_HEIGHT,
+            SHEEN_TOP,
+            Color.TRANSPARENT,
+            Shader.TileMode.CLAMP,
+        )
     }
 
     private fun fadeBackground() {
@@ -135,6 +182,11 @@ class WidgetBackgroundEffects private constructor(
     companion object {
         private const val TAG = "WidgetBackgroundEffects"
         private const val MAX_BLUR_DP = 40f
+        private const val EDGE_WIDTH_DP = 1.2f
+        private const val SHEEN_HEIGHT = 0.6f
+        private const val SHEEN_TOP = 0x1FFFFFFF
+        private val EDGE_COLORS = intArrayOf(0x99FFFFFF.toInt(), 0x22FFFFFF, 0x08FFFFFF, 0x22FFFFFF, 0x66FFFFFF)
+        private val EDGE_STOPS = floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1f)
 
         /** Whether the platform can blur behind widgets right now. */
         @JvmStatic
@@ -156,8 +208,9 @@ class WidgetBackgroundEffects private constructor(
             } else {
                 0
             }
-            if (alpha == 255 && blurRadius == 0) return null
-            return WidgetBackgroundEffects(host, alpha, blurRadius).also {
+            val glassEdge = prefs.widgetGlassEdge.firstCached(prefs)
+            if (alpha == 255 && blurRadius == 0 && !glassEdge) return null
+            return WidgetBackgroundEffects(host, alpha, blurRadius, glassEdge).also {
                 host.addOnAttachStateChangeListener(it)
             }
         }

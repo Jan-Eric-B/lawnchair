@@ -355,6 +355,12 @@ class PreferenceManager2 @Inject constructor(
         onSet = { reloadHelper.reloadGrid() },
     )
 
+    val widgetGlassEdge = preference(
+        key = booleanPreferencesKey(name = "widget_glass_edge"),
+        defaultValue = false,
+        onSet = { reloadHelper.reloadGrid() },
+    )
+
     val allowWidgetOverlap = preference(
         key = booleanPreferencesKey(name = "allow_widget_overlap"),
         defaultValue = context.resources.getBoolean(R.bool.config_default_allow_widget_overlap),

@@ -289,6 +289,11 @@ fun HomeScreenPreferences(
                 )
             }
             SwitchPreference(
+                adapter = prefs2.widgetGlassEdge.getAdapter(),
+                label = stringResource(id = R.string.widget_glass_edge_label),
+                description = stringResource(id = R.string.widget_glass_edge_description),
+            )
+            SwitchPreference(
                 adapter = prefs2.allowWidgetOverlap.getAdapter(),
                 label = stringResource(id = R.string.allow_widget_overlap),
             )
