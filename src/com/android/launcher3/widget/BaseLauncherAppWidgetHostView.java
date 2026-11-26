@@ -19,15 +19,20 @@ package com.android.launcher3.widget;
 import android.content.Context;
 import android.graphics.Outline;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewOutlineProvider;
+import android.view.ViewTreeObserver;
 import android.widget.RemoteViews;
 
 import androidx.annotation.UiThread;
 
 import com.android.launcher3.R;
 import com.android.launcher3.util.Executors;
+
+import app.lawnchair.preferences2.PreferenceCacheExtensionsKt;
+import app.lawnchair.preferences2.PreferenceManager2;
 
 /**
  * Launcher AppWidgetHostView with support for rounded corners and a fallback View.
@@ -65,6 +70,15 @@ public abstract class BaseLauncherAppWidgetHostView extends NavigableAppWidgetHo
     // Lawnchair: LocalColorExtractor
     private final LocalColorExtractor mColorExtractor;
 
+    // Lawnchair: widget background opacity
+    private final int mBackgroundAlpha;
+    private View mBackgroundView;
+    // RemoteViews updates can recolor or replace the background without a new layout
+    private final ViewTreeObserver.OnPreDrawListener mFadeBackgroundListener = () -> {
+        fadeBackground();
+        return true;
+    };
+
     public BaseLauncherAppWidgetHostView(Context context) {
         super(context);
 
@@ -74,6 +88,9 @@ public abstract class BaseLauncherAppWidgetHostView extends NavigableAppWidgetHo
         mInflater = LayoutInflater.from(context);
         mEnforcedCornerRadius = RoundedCornerEnforcement.computeEnforcedRadius(getContext());
         mColorExtractor = LocalColorExtractor.newInstance(getContext());
+        float opacity = PreferenceCacheExtensionsKt.firstCached(
+                PreferenceManager2.getInstance(context).getWidgetBackgroundOpacity());
+        mBackgroundAlpha = Math.round(255 * Math.max(0f, Math.min(1f, opacity)));
     }
 
     @Override
@@ -93,12 +110,16 @@ public abstract class BaseLauncherAppWidgetHostView extends NavigableAppWidgetHo
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         mColorExtractor.setListener(this);
+        if (mBackgroundAlpha < 255) {
+            getViewTreeObserver().addOnPreDrawListener(mFadeBackgroundListener);
+        }
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         mColorExtractor.setListener(null);
+        getViewTreeObserver().removeOnPreDrawListener(mFadeBackgroundListener);
     }
 
     @Override
@@ -110,6 +131,19 @@ public abstract class BaseLauncherAppWidgetHostView extends NavigableAppWidgetHo
         }
 
         enforceRoundedCorners();
+        if (mBackgroundAlpha < 255) {
+            View background = RoundedCornerEnforcement.findBackground(this);
+            mBackgroundView = background == this ? null : background;
+            fadeBackground();
+        }
+    }
+
+    /** Lawnchair: applies the widget background opacity to the background drawable. */
+    private void fadeBackground() {
+        if (mBackgroundAlpha == 255 || mBackgroundView == null) return;
+        Drawable background = mBackgroundView.getBackground();
+        // No-op when the alpha is already applied
+        if (background != null) background.mutate().setAlpha(mBackgroundAlpha);
     }
 
     @UiThread
