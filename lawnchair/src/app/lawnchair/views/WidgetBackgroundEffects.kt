@@ -20,7 +20,7 @@ import kotlin.math.roundToInt
 /**
  * Lawnchair: background opacity, blur and glass edge for app widgets.
  *
- * Applied to the view the widget marks as its background (`@android:id/background`).
+ * Applied only to the view the widget marks as its background (`@android:id/background`).
  * The blur uses the platform's cross-window background blur, so it shows the wallpaper behind
  * the launcher window.
  */
@@ -72,7 +72,9 @@ class WidgetBackgroundEffects(private val host: ViewGroup) {
 
     fun onLayout(enforcedCornerRadius: Float) {
         if (!isActive) return
-        background = RoundedCornerEnforcement.findBackground(host).takeIf { it !== host }
+        // Only widgets that declare their background; a guessed one may be a transparent container
+        background = RoundedCornerEnforcement.findBackground(host)
+            ?.takeIf { it.id == android.R.id.background }
         val bg = background
         if (bg == null) {
             bounds.setEmpty()
